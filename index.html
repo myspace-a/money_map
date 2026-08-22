@@ -6,13 +6,58 @@
   <title>Money Map — Foundation</title>
 </head>
 <body>
-  <h1>Money Map — Foundation (Phase 1)</h1>
-  <p>
-    This page exists only to prove persistence works end-to-end (WASM SQLite
-    + OPFS), per this Build Chat's scope. It is not the app UI.
-  </p>
+  <h1>Money Map</h1>
   <div id="status">Initializing…</div>
-  <ul id="transaction-list"></ul>
+
+  <section id="transactions-section">
+    <h2>Transactions</h2>
+
+    <div id="transaction-filters">
+      <label>
+        Month
+        <select id="filter-month"><option value="all">All months</option></select>
+      </label>
+      <label>
+        From
+        <input type="date" id="filter-date-from" />
+      </label>
+      <label>
+        To
+        <input type="date" id="filter-date-to" />
+      </label>
+      <label>
+        Category
+        <select id="filter-category"><option value="all">All categories</option></select>
+      </label>
+      <label>
+        Type
+        <select id="filter-type">
+          <option value="all">All</option>
+          <option value="income">Income</option>
+          <option value="expense">Expense</option>
+        </select>
+      </label>
+      <label>
+        Search
+        <input type="text" id="filter-search" placeholder="description, merchant…" />
+      </label>
+      <button type="button" id="filter-reset-btn">Reset filters</button>
+    </div>
+
+    <table id="transaction-table">
+      <thead>
+        <tr>
+          <th data-sort="date">Date</th>
+          <th>Description</th>
+          <th data-sort="amount">Amount</th>
+          <th>Category</th>
+          <th>Method</th>
+        </tr>
+      </thead>
+      <tbody id="transaction-table-body"></tbody>
+    </table>
+    <p id="transaction-empty-message" hidden>No transactions match these filters.</p>
+  </section>
 
   <section id="import-section">
     <h2>Import ING CSV</h2>
