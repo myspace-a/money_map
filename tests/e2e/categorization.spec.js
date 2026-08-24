@@ -35,23 +35,23 @@ test.describe('Categorization', () => {
       'Imported 4 transaction(s); skipped 0.'
     );
 
-    const items = page.locator('#transaction-list li');
+    const items = page.locator('#transaction-table-body tr:not(.transaction-detail-row)');
 
     // Accredito Stipendio/Pensione -> the "Salary / Pension" default rule
     const salaryItem = items.filter({ hasText: 'Accredito stipendio' });
     await expect(salaryItem).toContainText('Salary / Pension');
-    await expect(salaryItem).toContainText('default');
+    await expect(salaryItem).toHaveAttribute('data-categorization-method', 'default');
 
     // Prelievo Carta -> the "Cash Withdrawal" default rule
     const cashItem = items.filter({ hasText: 'Prelievo Carta ATM' });
     await expect(cashItem).toContainText('Cash Withdrawal');
-    await expect(cashItem).toContainText('default');
+    await expect(cashItem).toHaveAttribute('data-categorization-method', 'default');
 
     // A generic "Pagamento Carta" -> the lowest-priority "Card Payment"
     // catch-all default rule
     const genericCardItem = items.filter({ hasText: 'SUPERMERCATO GIALLO' });
     await expect(genericCardItem).toContainText('Card Payment');
-    await expect(genericCardItem).toContainText('default');
+    await expect(genericCardItem).toHaveAttribute('data-categorization-method', 'default');
   });
 
   test('a user rule outranks a matching default rule', async ({ page }) => {
@@ -72,17 +72,17 @@ test.describe('Categorization', () => {
     await page.click('#import-preview-btn');
     await page.click('#import-confirm-btn');
 
-    const items = page.locator('#transaction-list li');
+    const items = page.locator('#transaction-table-body tr:not(.transaction-detail-row)');
 
     // BAR CENTRALE: the user rule wins -> Cash Withdrawal / rule
     const barItem = items.filter({ hasText: 'BAR CENTRALE' });
     await expect(barItem).toContainText('Cash Withdrawal');
-    await expect(barItem).toContainText('/ rule');
+    await expect(barItem).toHaveAttribute('data-categorization-method', 'rule');
 
     // SUPERMERCATO GIALLO: no user rule matches it -> still the default rule
     const supermarketItem = items.filter({ hasText: 'SUPERMERCATO GIALLO' });
     await expect(supermarketItem).toContainText('Card Payment');
-    await expect(supermarketItem).toContainText('/ default');
+    await expect(supermarketItem).toHaveAttribute('data-categorization-method', 'default');
   });
 
   test('rules screen: create, disable, and delete a user rule', async ({ page }) => {
@@ -138,7 +138,7 @@ test.describe('Categorization', () => {
     expect(corrected.categorizationMethod).toBe('manual');
     expect(corrected.categoryId).toBe(targetCategoryId);
 
-    const item = page.locator(`#transaction-list li[data-transaction-id="${inserted.id}"]`);
-    await expect(item).toContainText('/ manual');
+    const item = page.locator(`#transaction-table-body tr[data-transaction-id="${inserted.id}"]`);
+    await expect(item).toHaveAttribute('data-categorization-method', 'manual');
   });
 });

@@ -1,11 +1,10 @@
 /**
- * main.js — app entry point. Not the real UI (that's Phase 4 onward) — this
- * wires together whatever exists so far: on load, run migrations, seed
- * built-in default categories/rules (Phase 3), render a minimal one-line
- * transaction list, and mount the import screen (Phase 2) and rules screen
- * (Phase 3). Also exposes a few operations on `window.MoneyMapApp` so
- * Playwright tests can drive things a full UI doesn't exist for yet (e.g.
- * manual correction, ahead of Phase 4's transaction editor).
+ * main.js — app entry point. Wires together everything built so far: on
+ * load, run migrations, seed built-in default categories/rules (Phase 3),
+ * and mount the transaction screen (Phase 4), import screen (Phase 2), and
+ * rules screen (Phase 3). Also exposes a few operations on
+ * `window.MoneyMapApp` so Playwright tests can drive things directly (e.g.
+ * inserting a sample transaction, listing transactions after a reload).
  *
  * STATUS: written but not executed in this container (no browser
  * available). Needs a real run before being trusted — see Build Chat
@@ -19,14 +18,14 @@ import { ImportSettingsRepository } from './repositories/importSettingsRepositor
 import { RuleRepository } from './repositories/ruleRepository.js';
 import { createCategory } from './domain/category.js';
 import { createTransaction } from './domain/transaction.js';
-import { formatMinorUnits } from './domain/money.js';
 import { initImportUI } from './import.js';
 import { initRulesUI } from './rules.js';
+import { initTransactionsUI } from './transactions.js';
 import { seedDefaults } from './categorization/seedDefaults.js';
 import { applyManualCategory } from './categorization/manualCorrection.js';
 
 const statusEl = document.getElementById('status');
-const listEl = document.getElementById('transaction-list');
+const transactionsSectionEl = document.getElementById('transactions-section');
 const importSectionEl = document.getElementById('import-section');
 const rulesSectionEl = document.getElementById('rules-section');
 
@@ -35,6 +34,7 @@ let categoryRepo;
 let transactionRepo;
 let importSettingsRepo;
 let ruleRepo;
+let transactionsUI;
 
 async function init() {
   db = new WasmSqliteAdapter();
@@ -50,14 +50,19 @@ async function init() {
   await seedDefaults(categoryRepo, ruleRepo);
 
   statusEl.textContent = 'Database ready.';
-  await renderTransactions();
+
+  transactionsUI = initTransactionsUI({
+    root: transactionsSectionEl,
+    transactionRepo,
+    categoryRepo,
+  });
 
   initImportUI({
     root: importSectionEl,
     transactionRepo,
     importSettingsRepo,
     ruleRepo,
-    onImportCommitted: renderTransactions,
+    onImportCommitted: () => transactionsUI.refresh(),
   });
 
   initRulesUI({
@@ -89,7 +94,7 @@ async function insertSampleTransaction() {
     fingerprint: `demo-${Date.now()}-${Math.random()}`,
   });
   await transactionRepo.insert(transaction);
-  await renderTransactions();
+  await transactionsUI.refresh();
   return transaction;
 }
 
@@ -102,36 +107,12 @@ async function listTransactions() {
 }
 
 /**
- * Minimal one-line rendering. Appends category name + categorization method
- * so Phase 3's output is actually visible without waiting for Phase 4's
- * real transaction table (search/filter/sort/details/explanation) — this is
- * not that table, just enough to see what happened during this Build Chat.
- */
-async function renderTransactions() {
-  const [transactions, categories] = await Promise.all([
-    transactionRepo.findAll(),
-    categoryRepo.findAll({ includeInactive: true }),
-  ]);
-  const categoryNameById = new Map(categories.map((c) => [c.id, c.name]));
-
-  listEl.innerHTML = '';
-  for (const t of transactions) {
-    const li = document.createElement('li');
-    const categoryLabel = t.categoryId
-      ? (categoryNameById.get(t.categoryId) ?? 'unknown category')
-      : 'uncategorized';
-    li.textContent = `${t.date} — ${t.description} — ${formatMinorUnits(t.amountMinorUnits)} — [${categoryLabel} / ${t.categorizationMethod}]`;
-    li.dataset.transactionId = t.id;
-    li.dataset.categorizationMethod = t.categorizationMethod;
-    listEl.appendChild(li);
-  }
-}
-
-/**
- * Exposed on window.MoneyMapApp for the Playwright test to drive a manual
- * correction directly — Phase 4 owns the actual transaction-editing UI, but
- * the underlying categorization behavior (PROJECT_SPEC.md §3.4) belongs to
- * this phase and needs a way to be exercised end-to-end until that UI exists.
+ * Exposed on window.MoneyMapApp as a direct, no-UI way to drive a manual
+ * correction — kept for existing Playwright tests that exercise
+ * categorization behavior (PROJECT_SPEC.md §3.4) without going through the
+ * transaction table's UI. The transaction table (transactions.js) also
+ * offers the same correction through its own category-editor dropdown now
+ * that Phase 4 exists.
  * @param {string} transactionId
  * @param {string} categoryId
  * @returns {Promise<object>}
@@ -139,7 +120,7 @@ async function renderTransactions() {
 async function correctTransactionCategory(transactionId, categoryId) {
   const transaction = await transactionRepo.findById(transactionId);
   const updated = await applyManualCategory(transaction, categoryId, transactionRepo);
-  await renderTransactions();
+  await transactionsUI.refresh();
   return updated;
 }
 

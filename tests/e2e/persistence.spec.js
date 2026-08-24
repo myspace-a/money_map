@@ -28,17 +28,19 @@ test.describe('persistence across reload', () => {
     expect(match.amountMinorUnits).toBe(-1250);
     expect(match.description).toBe('Demo transaction');
 
-    // Also visible in the rendered list, not just queryable.
-    await expect(page.locator(`li[data-transaction-id="${inserted.id}"]`)).toBeVisible();
+    // Also visible in the rendered table, not just queryable.
+    await expect(
+      page.locator(`#transaction-table-body tr[data-transaction-id="${inserted.id}"]`)
+    ).toBeVisible();
   });
 
   test('inserted transaction is reflected in the DOM before reload', async ({ page }) => {
     await page.goto('/');
     await expect(page.locator('#status')).toHaveText('Database ready.', { timeout: 10_000 });
 
-    const before = await page.locator('#transaction-list li').count();
+    const before = await page.locator('#transaction-table-body tr:not(.transaction-detail-row)').count();
     await page.evaluate(() => window.MoneyMapApp.insertSampleTransaction());
-    const after = await page.locator('#transaction-list li').count();
+    const after = await page.locator('#transaction-table-body tr:not(.transaction-detail-row)').count();
 
     expect(after).toBe(before + 1);
   });

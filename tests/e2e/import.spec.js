@@ -24,7 +24,7 @@ test.describe('ING CSV import', () => {
     await page.goto('/');
     await expect(page.locator('#status')).toHaveText('Database ready.', { timeout: 10_000 });
 
-    const initialCount = await page.locator('#transaction-list li').count();
+    const initialCount = await page.locator('#transaction-table-body tr:not(.transaction-detail-row)').count();
 
     // --- First import: everything should be classified 'new' ---
     await page.setInputFiles('#import-file-input', FIXTURE_PATH);
@@ -44,7 +44,7 @@ test.describe('ING CSV import', () => {
       'Imported 4 transaction(s); skipped 0.'
     );
 
-    const afterFirstImportCount = await page.locator('#transaction-list li').count();
+    const afterFirstImportCount = await page.locator('#transaction-table-body tr:not(.transaction-detail-row)').count();
     expect(afterFirstImportCount).toBe(initialCount + 4);
 
     // --- Second import of the same file: everything should now be an
@@ -65,7 +65,7 @@ test.describe('ING CSV import', () => {
       'Imported 0 transaction(s); skipped 4.'
     );
 
-    const afterSecondImportCount = await page.locator('#transaction-list li').count();
+    const afterSecondImportCount = await page.locator('#transaction-table-body tr:not(.transaction-detail-row)').count();
     expect(afterSecondImportCount).toBe(afterFirstImportCount);
   });
 
