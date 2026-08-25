@@ -1,8 +1,8 @@
 # Personal Money Analyzer — Project Specification
 
-**Status:** Initial specification  
-**Primary country:** Italy  
-**Primary bank:** ING Italy  
+**Status:** Initial specification
+**Primary country:** Italy
+**Primary bank:** ING Italy
 **Target platforms:** Android and Linux
 
 ## 1. Goal
@@ -28,6 +28,7 @@ The MVP should avoid speculative features and unnecessary architectural complexi
 ### 3.1 Incremental ING CSV import
 
 The application must:
+
 - import ING Italy CSV files without replacing existing transactions;
 - preserve existing transactions unless explicitly updated/merged;
 - support a configurable ING import profile;
@@ -41,6 +42,7 @@ The application must:
 Imported transactions must be checked against local transactions.
 
 The system must:
+
 - detect obvious duplicates;
 - distinguish possible duplicates from confirmed duplicates;
 - allow user review of duplicate candidates;
@@ -53,10 +55,10 @@ Supported outcomes include unique/new, exact duplicate and probable duplicate. T
 
 Every transaction must have a current category and categorization method.
 
-Methods:
-`default`, `rule`, `learned`, `manual`, `uncategorized`.
+Methods: `default`, `rule`, `learned`, `manual`, `uncategorized`.
 
 Priority:
+
 1. custom user rule
 2. built-in default rule
 3. historical learning
@@ -81,6 +83,7 @@ The application must expose why a transaction was categorized, including method 
 Categories use stable internal IDs; names are not identifiers.
 
 The user must be able to:
+
 - create, rename and deactivate categories;
 - split categories;
 - merge categories;
@@ -88,9 +91,16 @@ The user must be able to:
 
 Historical transactions must remain consistent and category changes must not corrupt data.
 
+**Split and merge behavior (MVP, resolved during Phase 5):**
+
+- **Split** moves all transactions in a category whose merchant/description matches a given filter into another category — not a free-form selection of individual transactions. This covers the realistic split use case (e.g. pulling all "Amazon" purchases out of a generic "Shopping" category).
+- **Merge** also reassigns any rules pointing at the source category to the target category, so no rule is left silently categorizing new imports into a category that no longer exists.
+- Transactions moved by split or merge are recorded using the same `manual` categorization method as a direct manual correction (§3.3), so they inform future learning suggestions (§3.4) and remain explainable (§3.5).
+
 ### 3.7 Transactions
 
 Provide a transaction list showing at least:
+
 - date;
 - description;
 - merchant/counterparty;
@@ -109,6 +119,7 @@ Support filtering by month, date range, category, income/expense and search text
 ### 3.9 Dashboard
 
 Provide:
+
 - spending by category;
 - monthly income, expenses and net cash flow;
 - top merchants/counterparties by spending;
@@ -120,6 +131,7 @@ Charts must respond to applicable filters.
 ### 3.10 Export
 
 Support:
+
 - normalized CSV transaction export;
 - JSON application-data export.
 
@@ -151,6 +163,7 @@ This directly extends the safety principle in §4 ("must never silently delete o
 Financial data is sensitive.
 
 Requirements:
+
 - local-first operation;
 - no mandatory cloud backend;
 - no external AI/API required for categorization;
@@ -169,6 +182,7 @@ The application must never silently delete or overwrite financial data.
 The application must run on Android and Linux.
 
 The architecture must support:
+
 - persistent local storage;
 - safe migrations;
 - data preservation and backward compatibility;
@@ -181,11 +195,17 @@ The architecture must support:
 1. Foundation — repository/app setup, local database, schema, domain models and persistence.
 
 2. ING Import — parser, mapping, normalization, validation, fingerprinting, duplicate detection/review and incremental import.
+
 3. Categorization — defaults, user rules, priority, metadata, learning, confidence and manual correction.
+
 4. Transaction UI — table, search, filters, sorting, details and categorization explanation.
+
 5. Category Management — create, rename, split, merge, deactivate and reassignment.
+
 6. Dashboard — category charts, trends, income/expense, merchants and filters.
+
 7. Export/Backup — CSV, JSON, backup and restore, and user-activated data reset (§3.13).
-9. Testing/Hardening — unit, integration, E2E, real ING validation, edge cases, backup/restore, performance and UX refinement.
+
+8. Testing/Hardening — unit, integration, E2E, real ING validation, edge cases, backup/restore, performance and UX refinement.
 
 This document defines product requirements. Technical implementation decisions belong in `docs/ARCHITECTURE.md`; development process belongs in `docs/DEVELOPMENT.md`.
