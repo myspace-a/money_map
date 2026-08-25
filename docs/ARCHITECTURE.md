@@ -180,6 +180,16 @@ Based on a real ING Italy export, the raw format has several quirks the importer
 
 ---
 
+## 6b. Category Split/Merge Mechanics (concrete)
+
+Resolved during Phase 5 (Category Management):
+
+- **Split** is implemented as a single bulk primitive, not free-form multi-select: move all transactions in category X whose merchant/description matches a given filter into category Y. This avoids adding multi-select UI to the already-built Transaction UI (Phase 4), while covering the realistic split use case (e.g. pulling "Amazon" purchases out of a generic "Shopping" category).
+- **Merge** automatically reassigns any rules (`category_id`) pointing at the source category to the target category, and reports the number of rules moved — this prevents a rule from silently continuing to categorize new imports into a category that's now inactive.
+- **Learning integration:** transactions moved by split or merge are recorded with `categorization_method: 'manual'` and evidence such as `{ type: 'manual', reason: 'category-merge' }` (or an equivalent `reason` for split) — reusing the same mechanism `applyManualCategory` already uses, rather than a special-cased code path. This means split/merge actions naturally feed the learning engine (`PROJECT_SPEC.md` §3.4) and stay explainable (`PROJECT_SPEC.md` §3.5).
+
+---
+
 ## 7. Testing Strategy
 
 ### 7.1 Guiding principle
