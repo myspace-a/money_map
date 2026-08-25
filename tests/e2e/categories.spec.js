@@ -105,8 +105,12 @@ test.describe('Category management', () => {
     await page.selectOption('#category-merge-target', { label: 'Card Payment' });
     await page.click('#category-merge-form button[type="submit"]');
 
+    // 2 rules move, not 1: the "BANCOMAT" user rule just created above, plus
+    // the pre-existing default rule that already points "Prelievo Carta" ->
+    // "Cash Withdrawal" (seeded on startup by categorization/defaultRules.js).
+    // Merge reassigns default rules too, not just user rules.
     await expect(page.locator('#category-merge-status')).toContainText(
-      'moved 1 transaction(s) and 1 rule(s)'
+      'moved 1 transaction(s) and 2 rule(s)'
     );
 
     // Source category is now inactive, not deleted.
