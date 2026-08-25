@@ -84,6 +84,38 @@ export class RuleRepository {
   }
 
   /**
+   * Finds every rule (user or default) currently pointing at a category.
+   * Used by category merge (Phase 5, PROJECT_SPEC.md §3.6) to know, and
+   * warn about, what rules would be affected by merging that category away.
+   * @param {string} categoryId
+   * @returns {Promise<import('../domain/rule.js').Rule[]>}
+   */
+  async findByCategoryId(categoryId) {
+    const rows = await this.db.query('SELECT * FROM rules WHERE category_id = ?;', [categoryId]);
+    return rows.map(rowToRule);
+  }
+
+  /**
+   * Bulk-reassigns every rule currently pointing at `fromCategoryId` to
+   * `toCategoryId`. Used by category merge: without this, a rule left
+   * pointing at a merged-away (deactivated) category would keep silently
+   * categorizing future imports into a category nobody sees anymore. The
+   * caller wraps this in `db.transaction()` alongside the transaction
+   * reassignment so a merge is all-or-nothing (ARCHITECTURE.md §4.2).
+   * @param {string} fromCategoryId
+   * @param {string} toCategoryId
+   * @returns {Promise<number>} number of rules reassigned
+   */
+  async reassignCategory(fromCategoryId, toCategoryId) {
+    const now = new Date().toISOString();
+    const result = await this.db.execute(
+      `UPDATE rules SET category_id = ?, updated_at = ? WHERE category_id = ?;`,
+      [toCategoryId, now, fromCategoryId]
+    );
+    return result.rowsAffected;
+  }
+
+  /**
    * @param {import('../domain/rule.js').Rule} rule
    * @returns {Promise<void>}
    */

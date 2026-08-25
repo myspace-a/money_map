@@ -1,8 +1,9 @@
 /**
  * main.js — app entry point. Wires together everything built so far: on
  * load, run migrations, seed built-in default categories/rules (Phase 3),
- * and mount the transaction screen (Phase 4), import screen (Phase 2), and
- * rules screen (Phase 3). Also exposes a few operations on
+ * and mount the transaction screen (Phase 4), import screen (Phase 2),
+ * rules screen (Phase 3), and category management screen (Phase 5). Also
+ * exposes a few operations on
  * `window.MoneyMapApp` so Playwright tests can drive things directly (e.g.
  * inserting a sample transaction, listing transactions after a reload).
  *
@@ -21,6 +22,7 @@ import { createTransaction } from './domain/transaction.js';
 import { initImportUI } from './import.js';
 import { initRulesUI } from './rules.js';
 import { initTransactionsUI } from './transactions.js';
+import { initCategoriesUI } from './categories.js';
 import { seedDefaults } from './categorization/seedDefaults.js';
 import { applyManualCategory } from './categorization/manualCorrection.js';
 
@@ -28,6 +30,7 @@ const statusEl = document.getElementById('status');
 const transactionsSectionEl = document.getElementById('transactions-section');
 const importSectionEl = document.getElementById('import-section');
 const rulesSectionEl = document.getElementById('rules-section');
+const categoriesSectionEl = document.getElementById('categories-section');
 
 let db;
 let categoryRepo;
@@ -35,6 +38,8 @@ let transactionRepo;
 let importSettingsRepo;
 let ruleRepo;
 let transactionsUI;
+let rulesUI;
+let categoriesUI;
 
 async function init() {
   db = new WasmSqliteAdapter();
@@ -65,10 +70,25 @@ async function init() {
     onImportCommitted: () => transactionsUI.refresh(),
   });
 
-  initRulesUI({
+  rulesUI = initRulesUI({
     root: rulesSectionEl,
     ruleRepo,
     categoryRepo,
+  });
+
+  categoriesUI = initCategoriesUI({
+    root: categoriesSectionEl,
+    db,
+    categoryRepo,
+    categoryRepoFactory: (txDb) => new CategoryRepository(txDb),
+    transactionRepo,
+    transactionRepoFactory: (txDb) => new TransactionRepository(txDb),
+    ruleRepo,
+    ruleRepoFactory: (txDb) => new RuleRepository(txDb),
+    onCategoriesChanged: () => {
+      transactionsUI.refresh();
+      rulesUI.refresh();
+    },
   });
 }
 

@@ -141,6 +141,8 @@ export function initRulesUI({ root, ruleRepo, categoryRepo }) {
   refresh().catch((err) => {
     errorEl.textContent = `Could not load rules: ${err.message}`;
   });
+
+  return { refresh };
 }
 
 function populateMatchTypeOptions(select) {

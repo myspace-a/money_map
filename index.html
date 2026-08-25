@@ -74,6 +74,54 @@
     <p id="import-summary"></p>
   </section>
 
+  <section id="categories-section">
+    <h2>Categories</h2>
+
+    <form id="category-create-form">
+      <label>
+        New category name
+        <input type="text" id="category-create-name" required />
+      </label>
+      <button type="submit">Add category</button>
+    </form>
+    <p id="category-create-error"></p>
+
+    <div id="categories-list"></div>
+
+    <h3>Merge categories</h3>
+    <form id="category-merge-form">
+      <label>
+        Merge this category…
+        <select id="category-merge-source"></select>
+      </label>
+      <label>
+        …into this one
+        <select id="category-merge-target"></select>
+      </label>
+      <button type="submit">Merge</button>
+    </form>
+    <p id="category-merge-status"></p>
+
+    <h3>Split category (move matching transactions)</h3>
+    <form id="category-split-form">
+      <label>
+        From category
+        <select id="category-split-source"></select>
+      </label>
+      <label>
+        Text filter (matches description, merchant, or original bank text)
+        <input type="text" id="category-split-text" />
+      </label>
+      <button type="button" id="category-split-preview-btn">Preview matches</button>
+      <label>
+        Move matches to
+        <select id="category-split-target"></select>
+      </label>
+      <button type="submit">Move matching transactions</button>
+    </form>
+    <p id="category-split-status"></p>
+  </section>
+
   <section id="rules-section">
     <h2>Categorization Rules</h2>
 

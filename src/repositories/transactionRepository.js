@@ -110,6 +110,109 @@ export class TransactionRepository {
   }
 
   /**
+   * Finds every transaction currently assigned to a category. Used by
+   * category merge/split (Phase 5, PROJECT_SPEC.md §3.6) to know what's
+   * affected before/after a bulk reassignment.
+   * @param {string} categoryId
+   * @returns {Promise<import('../domain/transaction.js').Transaction[]>}
+   */
+  async findByCategoryId(categoryId) {
+    const rows = await this.db.query(
+      'SELECT * FROM transactions WHERE category_id = ? ORDER BY date DESC, created_at DESC;',
+      [categoryId]
+    );
+    return rows.map(rowToTransaction);
+  }
+
+  /**
+   * Finds transactions in a category whose description, merchant, or raw
+   * bank text contains a (case-insensitive) text filter. Used by the
+   * category "split" workflow (Phase 5, PROJECT_SPEC.md §3.6): move a
+   * matching subset of one category's transactions into another category,
+   * without needing multi-select in the transaction table (Phase 4).
+   * @param {string} categoryId
+   * @param {string} textFilter - already trimmed by the caller; matched
+   *   case-insensitively against description/merchant/raw_description
+   * @returns {Promise<import('../domain/transaction.js').Transaction[]>}
+   */
+  async findByCategoryIdAndText(categoryId, textFilter) {
+    const rows = await this.db.query(
+      `SELECT * FROM transactions
+       WHERE category_id = ?
+         AND (
+           lower(description) LIKE '%' || lower(?) || '%'
+           OR lower(coalesce(merchant, '')) LIKE '%' || lower(?) || '%'
+           OR lower(coalesce(raw_description, '')) LIKE '%' || lower(?) || '%'
+         )
+       ORDER BY date DESC, created_at DESC;`,
+      [categoryId, textFilter, textFilter, textFilter]
+    );
+    return rows.map(rowToTransaction);
+  }
+
+  /**
+   * Bulk-reassigns transactions in `fromCategoryId` whose description,
+   * merchant, or raw bank text contains `textFilter` (case-insensitive) to
+   * `toCategoryId`, in a single statement. This is the write counterpart to
+   * findByCategoryIdAndText() — used by the category "split" workflow
+   * (Phase 5, PROJECT_SPEC.md §3.6) so a split moves matching rows in one
+   * round-trip rather than looping `update()` per transaction.
+   * @param {string} fromCategoryId
+   * @param {string} toCategoryId
+   * @param {string} textFilter
+   * @param {{evidence: object}} meta
+   * @returns {Promise<number>} number of transactions reassigned
+   */
+  async reassignCategoryByText(fromCategoryId, toCategoryId, textFilter, { evidence }) {
+    const now = new Date().toISOString();
+    const result = await this.db.execute(
+      `UPDATE transactions
+       SET category_id = ?, categorization_method = 'manual',
+           categorization_confidence = 1, categorization_evidence = ?, updated_at = ?
+       WHERE category_id = ?
+         AND (
+           lower(description) LIKE '%' || lower(?) || '%'
+           OR lower(coalesce(merchant, '')) LIKE '%' || lower(?) || '%'
+           OR lower(coalesce(raw_description, '')) LIKE '%' || lower(?) || '%'
+         );`,
+      [toCategoryId, JSON.stringify(evidence), now, fromCategoryId, textFilter, textFilter, textFilter]
+    );
+    return result.rowsAffected;
+  }
+
+  /**
+   * Bulk-reassigns every transaction currently in `fromCategoryId` to
+   * `toCategoryId`, in a single statement (one round-trip, and avoids the
+   * "loop of individual updates" partial-failure risk for what can be
+   * hundreds of rows). Used by category merge (Phase 5); the caller is
+   * responsible for wrapping this in `db.transaction()` alongside any rule
+   * reassignment so the whole merge is atomic (ARCHITECTURE.md §4.2).
+   *
+   * Sets categorization_method to 'manual' (with the given evidence) on
+   * every reassigned row, on the same reasoning as manualCorrection.js: a
+   * merge/split is a deliberate user decision about where these
+   * transactions belong, not a suggestion, and reusing 'manual' is what
+   * makes these transactions count as future learning signal
+   * (categorization/learningEngine.js reads exactly this method).
+   *
+   * @param {string} fromCategoryId
+   * @param {string} toCategoryId
+   * @param {{evidence: object}} meta
+   * @returns {Promise<number>} number of transactions reassigned
+   */
+  async reassignCategory(fromCategoryId, toCategoryId, { evidence }) {
+    const now = new Date().toISOString();
+    const result = await this.db.execute(
+      `UPDATE transactions
+       SET category_id = ?, categorization_method = 'manual',
+           categorization_confidence = 1, categorization_evidence = ?, updated_at = ?
+       WHERE category_id = ?;`,
+      [toCategoryId, JSON.stringify(evidence), now, fromCategoryId]
+    );
+    return result.rowsAffected;
+  }
+
+  /**
    * @param {import('../domain/transaction.js').Transaction} transaction
    * @returns {Promise<void>}
    */
