@@ -102,6 +102,21 @@ If you'd rather use SSH keys instead of a token, that's an equally valid one-tim
 
 **On using GitHub Codespaces instead of a local machine:** Codespaces is a reasonable way to get a real browser and normal internet access when you're away from your Linux machine (e.g. on Android), and the `nvm`/PAT setup above applies there too. However, per §3.2, Codespaces has shown storage-timing-related Playwright failures that didn't reproduce on local Linux — so it's a fallback for convenience, not a substitute for the authoritative local run.
 
+**Local machine paths (this project's Linux machine):**
+
+- **Repo clone:** `/home/alberto_allocato_archive/Money_Analizer` — this folder is a clone of `github.com/myspace-a/money_map` (confirmed via `git remote -v`). The directory name is a holdover from before the repo was renamed; it does not need to match the GitHub repo name to work correctly.
+- **Downloaded delivery bundles:** `/home/alberto_allocato_archive/Downloads` — when a Build Chat's sandbox has no direct push access and instead delivers work as a `.bundle` file (see below), this is where it lands before being applied to the local clone.
+
+**Applying a delivered `.bundle` file.** When a Build Chat cannot push directly (see `DEVELOPMENT.md` §5 — no AI tool has unattended push permission), it may instead produce a git bundle for you to apply locally:
+
+```bash
+cd /home/alberto_allocato_archive/Money_Analizer
+git fetch /home/alberto_allocato_archive/Downloads/<bundle-filename>.bundle <branch-name>
+git checkout -b <branch-name> FETCH_HEAD
+```
+
+Then continue as normal: run the test suites (§3), and push the branch to open a PR (§2.3).
+
 ### 1.4 How a Build Chat verifies the environment before touching code
 
 This directly targets the Build Chat 01 failures (missing lockfile, Node v12 vs. assumed-modern Node). Before writing or modifying any application code, a Build Chat must run and report the result of:
