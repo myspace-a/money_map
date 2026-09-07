@@ -19,18 +19,32 @@
  * millions — an in-memory filter is simple to read and reason about, and
  * avoids building a parameterized-query layer speculatively. If real usage
  * ever shows this is too slow, moving specific filters into SQL is a
- * contained change (this module is the only thing that would need to
- * change — nothing outside it depends on how filtering is implemented).
+ * contained change (nothing outside the filter functions depends on how
+ * filtering is implemented).
  *
- * Category creation (Phase 5) and dashboard aggregation (Phase 6) are out
- * of scope here — this module only lists, filters, sorts, explains, and
- * lets the user manually recategorize existing transactions.
+ * As of Phase 6, the actual filter-matching logic (readTransactionFilters /
+ * applyTransactionFilters / the month+category option-populating helpers)
+ * lives in filters.js, not here — it's shared with dashboard.js so the
+ * Transactions and Dashboard screens filter transactions identically, per
+ * PROJECT_SPEC.md §3.8 ("filters should behave consistently in transaction
+ * and dashboard views"). This module still owns the table-specific parts:
+ * rendering rows, sorting, the detail/explanation panel, and manual
+ * recategorization.
+ *
+ * Category creation (Phase 5) is out of scope here — this module only
+ * lists, filters, sorts, explains, and lets the user manually recategorize
+ * existing transactions.
  */
 
 import { applyManualCategory } from './categorization/manualCorrection.js';
 import { formatMinorUnits } from './domain/money.js';
-import { isExpense, isIncome } from './domain/transaction.js';
-import { el, formatDate, formatMonthKey, toMonthKey } from './ui-utils.js';
+import {
+  applyTransactionFilters,
+  populateCategoryFilterOptions,
+  populateMonthFilterOptions,
+  readTransactionFilters,
+} from './filters.js';
+import { el, formatDate, formatMonthKey } from './ui-utils.js';
 
 const METHOD_LABELS = {
   default: 'Default rule',
@@ -45,12 +59,13 @@ const METHOD_LABELS = {
  *   root: HTMLElement,
  *   transactionRepo: import('./repositories/transactionRepository.js').TransactionRepository,
  *   categoryRepo: import('./repositories/categoryRepository.js').CategoryRepository,
+ *   onTransactionChanged?: () => void,
  * }} options
  * @returns {{ refresh: () => Promise<void> }} exposes refresh() so other
  *   screens (e.g. import.js after a commit) can ask this screen to reload
  *   without this module needing to know about them
  */
-export function initTransactionsUI({ root, transactionRepo, categoryRepo }) {
+export function initTransactionsUI({ root, transactionRepo, categoryRepo, onTransactionChanged }) {
   const tbody = root.querySelector('#transaction-table-body');
   const emptyMessageEl = root.querySelector('#transaction-empty-message');
   const monthSelect = root.querySelector('#filter-month');
@@ -84,49 +99,9 @@ export function initTransactionsUI({ root, transactionRepo, categoryRepo }) {
     categories = cats;
     categoryNameById = new Map(cats.map((c) => [c.id, c.name]));
 
-    populateMonthOptions(monthSelect, transactions);
-    populateCategoryOptions(categorySelect, cats);
+    populateMonthFilterOptions(monthSelect, transactions, { formatMonthKey });
+    populateCategoryFilterOptions(categorySelect, cats);
     render();
-  }
-
-  function readFilters() {
-    return {
-      month: monthSelect.value,
-      dateFrom: dateFromInput.value || null,
-      dateTo: dateToInput.value || null,
-      categoryId: categorySelect.value,
-      type: typeSelect.value,
-      search: searchInput.value.trim().toLowerCase(),
-    };
-  }
-
-  function applyFilters(transactions, filters) {
-    return transactions.filter((t) => {
-      if (filters.month && filters.month !== 'all' && toMonthKey(t.date) !== filters.month) {
-        return false;
-      }
-      if (filters.dateFrom && t.date < filters.dateFrom) return false;
-      if (filters.dateTo && t.date > filters.dateTo) return false;
-
-      if (filters.categoryId === 'uncategorized') {
-        if (t.categoryId) return false;
-      } else if (filters.categoryId && filters.categoryId !== 'all') {
-        if (t.categoryId !== filters.categoryId) return false;
-      }
-
-      if (filters.type === 'income' && !isIncome(t)) return false;
-      if (filters.type === 'expense' && !isExpense(t)) return false;
-
-      if (filters.search) {
-        const haystack = [t.description, t.merchant, t.rawDescription]
-          .filter(Boolean)
-          .join(' ')
-          .toLowerCase();
-        if (!haystack.includes(filters.search)) return false;
-      }
-
-      return true;
-    });
   }
 
   function applySort(transactions, sort) {
@@ -144,8 +119,15 @@ export function initTransactionsUI({ root, transactionRepo, categoryRepo }) {
   }
 
   function render() {
-    const filters = readFilters();
-    const filtered = applyFilters(allTransactions, filters);
+    const filters = readTransactionFilters({
+      monthSelect,
+      dateFromInput,
+      dateToInput,
+      categorySelect,
+      typeSelect,
+      searchInput,
+    });
+    const filtered = applyTransactionFilters(allTransactions, filters);
     const sorted = applySort(filtered, sortState);
 
     updateSortIndicators(table, sortState);
@@ -282,6 +264,7 @@ export function initTransactionsUI({ root, transactionRepo, categoryRepo }) {
       }
       await applyManualCategory(current, categoryId, transactionRepo);
       await refresh();
+      onTransactionChanged?.();
     });
 
     wrapper.appendChild(select);
@@ -323,30 +306,6 @@ export function initTransactionsUI({ root, transactionRepo, categoryRepo }) {
   });
 
   return { refresh };
-}
-
-function populateMonthOptions(select, transactions) {
-  const previousValue = select.value || 'all';
-  const months = [...new Set(transactions.map((t) => toMonthKey(t.date)))].sort().reverse();
-
-  select.innerHTML = '';
-  select.appendChild(el('option', { value: 'all', text: 'All months' }));
-  for (const monthKey of months) {
-    select.appendChild(el('option', { value: monthKey, text: formatMonthKey(monthKey) }));
-  }
-  select.value = months.includes(previousValue) || previousValue === 'all' ? previousValue : 'all';
-}
-
-function populateCategoryOptions(select, categories) {
-  const previousValue = select.value || 'all';
-  select.innerHTML = '';
-  select.appendChild(el('option', { value: 'all', text: 'All categories' }));
-  select.appendChild(el('option', { value: 'uncategorized', text: 'Uncategorized' }));
-  for (const category of categories) {
-    select.appendChild(el('option', { value: category.id, text: category.name }));
-  }
-  const validValues = new Set(['all', 'uncategorized', ...categories.map((c) => c.id)]);
-  select.value = validValues.has(previousValue) ? previousValue : 'all';
 }
 
 function updateSortIndicators(table, sortState) {
