@@ -23,6 +23,7 @@ import { initImportUI } from './import.js';
 import { initRulesUI } from './rules.js';
 import { initTransactionsUI } from './transactions.js';
 import { initCategoriesUI } from './categories.js';
+import { initDashboardUI } from './dashboard.js';
 import { seedDefaults } from './categorization/seedDefaults.js';
 import { applyManualCategory } from './categorization/manualCorrection.js';
 
@@ -31,6 +32,7 @@ const transactionsSectionEl = document.getElementById('transactions-section');
 const importSectionEl = document.getElementById('import-section');
 const rulesSectionEl = document.getElementById('rules-section');
 const categoriesSectionEl = document.getElementById('categories-section');
+const dashboardSectionEl = document.getElementById('dashboard-section');
 
 let db;
 let categoryRepo;
@@ -40,6 +42,7 @@ let ruleRepo;
 let transactionsUI;
 let rulesUI;
 let categoriesUI;
+let dashboardUI;
 
 async function init() {
   db = new WasmSqliteAdapter();
@@ -60,6 +63,13 @@ async function init() {
     root: transactionsSectionEl,
     transactionRepo,
     categoryRepo,
+    onTransactionChanged: () => dashboardUI.refresh(),
+  });
+
+  dashboardUI = initDashboardUI({
+    root: dashboardSectionEl,
+    transactionRepo,
+    categoryRepo,
   });
 
   initImportUI({
@@ -67,7 +77,10 @@ async function init() {
     transactionRepo,
     importSettingsRepo,
     ruleRepo,
-    onImportCommitted: () => transactionsUI.refresh(),
+    onImportCommitted: () => {
+      transactionsUI.refresh();
+      dashboardUI.refresh();
+    },
   });
 
   rulesUI = initRulesUI({
@@ -88,6 +101,7 @@ async function init() {
     onCategoriesChanged: () => {
       transactionsUI.refresh();
       rulesUI.refresh();
+      dashboardUI.refresh();
     },
   });
 }
@@ -115,6 +129,7 @@ async function insertSampleTransaction() {
   });
   await transactionRepo.insert(transaction);
   await transactionsUI.refresh();
+  await dashboardUI.refresh();
   return transaction;
 }
 
@@ -141,6 +156,7 @@ async function correctTransactionCategory(transactionId, categoryId) {
   const transaction = await transactionRepo.findById(transactionId);
   const updated = await applyManualCategory(transaction, categoryId, transactionRepo);
   await transactionsUI.refresh();
+  await dashboardUI.refresh();
   return updated;
 }
 

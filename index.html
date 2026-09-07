@@ -9,6 +9,66 @@
   <h1>Money Map</h1>
   <div id="status">Initializing…</div>
 
+  <section id="dashboard-section">
+    <h2>Dashboard</h2>
+
+    <div id="dashboard-filters">
+      <label>
+        Month
+        <select id="dashboard-filter-month"><option value="all">All months</option></select>
+      </label>
+      <label>
+        From
+        <input type="date" id="dashboard-filter-date-from" />
+      </label>
+      <label>
+        To
+        <input type="date" id="dashboard-filter-date-to" />
+      </label>
+      <label>
+        Category
+        <select id="dashboard-filter-category"><option value="all">All categories</option></select>
+      </label>
+      <label>
+        Type
+        <select id="dashboard-filter-type">
+          <option value="all">All</option>
+          <option value="income">Income</option>
+          <option value="expense">Expense</option>
+        </select>
+      </label>
+      <label>
+        Search
+        <input type="text" id="dashboard-filter-search" placeholder="description, merchant…" />
+      </label>
+      <button type="button" id="dashboard-filter-reset-btn">Reset filters</button>
+    </div>
+
+    <p id="dashboard-empty-message" hidden>No transactions match these filters.</p>
+
+    <div id="dashboard-totals">
+      <div>
+        <span>Total income</span>
+        <strong id="dashboard-total-income">—</strong>
+      </div>
+      <div>
+        <span>Total expenses</span>
+        <strong id="dashboard-total-expense">—</strong>
+      </div>
+      <div>
+        <span>Net balance</span>
+        <strong id="dashboard-net-balance">—</strong>
+      </div>
+    </div>
+
+    <div id="dashboard-charts">
+      <canvas id="dashboard-chart-category" data-testid="dashboard-chart-category"></canvas>
+      <canvas id="dashboard-chart-income-expense" data-testid="dashboard-chart-income-expense"></canvas>
+      <canvas id="dashboard-chart-merchants" data-testid="dashboard-chart-merchants"></canvas>
+      <canvas id="dashboard-chart-monthly" data-testid="dashboard-chart-monthly"></canvas>
+    </div>
+  </section>
+
   <section id="transactions-section">
     <h2>Transactions</h2>
 
@@ -150,6 +210,19 @@
     <div id="rules-list"></div>
   </section>
 
+  <!--
+    Chart.js, loaded from a CDN rather than bundled (ARCHITECTURE.md §2:
+    "Chart.js when the dashboard phase adds it" — CDN-loaded at runtime like
+    wa-sqlite, consistent with the no-build-step approach). Must load before
+    main.js, since dashboard.js expects window.Chart to already exist.
+
+    NOTE (Phase 6 wrap-up flag): no service worker exists yet in this repo
+    (see wrap-up notes), so this CDN URL is not currently cached for offline
+    use. ARCHITECTURE.md §5/§9 already call out that whenever a service
+    worker is built, it must explicitly cache CDN library URLs like this one
+    — that work doesn't exist yet at all, not just for Chart.js.
+  -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.5.1/chart.umd.min.js"></script>
   <script type="module" src="./src/main.js"></script>
 </body>
 </html>
